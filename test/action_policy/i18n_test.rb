@@ -20,7 +20,7 @@ class I18nDefaultPolicy < ActionPolicy::Base
   end
 
   def view?
-    deny!(:deleted)
+    allowed_to?(:view?, with: I18nDeferredPolicy)
   end
 end
 
@@ -42,6 +42,15 @@ class I18nIncludingCoreLocalizedPolicy
 
   def admin?
     false
+  end
+end
+
+class I18nDeferredPolicy
+  include ActionPolicy::Policy::Core
+  include ActionPolicy::Policy::Reasons
+
+  def view?
+    deny!(:deleted)
   end
 end
 
@@ -74,8 +83,7 @@ class TestI18nAppDefaults < Minitest::Test
         unauthorized: "This action is not allowed",
         policy: {
           feed?: "You're not authorized to access the feed",
-          admin?: "Only admins are authorized to view this data",
-          deleted: "This data has been deleted"
+          admin?: "Only admins are authorized to view this data"
         }
       }
     )
@@ -111,12 +119,6 @@ class TestI18nAppDefaults < Minitest::Test
     assert_includes policy.result.reasons.full_messages,
       "Only admins are authorized to view this data"
   end
-
-  def test_deny_message_override
-    policy = I18nDefaultPolicy.new(user: @user)
-    refute policy.apply(:view?)
-    assert_equal "This data has been deleted", policy.result.message
-  end
 end
 
 class TestI18nPolicies < Minitest::Test
@@ -140,6 +142,9 @@ class TestI18nPolicies < Minitest::Test
           i18n_including_core_localized: {
             edit?: "You are not authorized to read this data according to policy including core",
             admin?: "You are not authorized to access feed according to policy including core"
+          },
+          i18n_deferred: {
+            deleted: "This data has been deleted"
           }
         }
       }
@@ -206,6 +211,12 @@ class TestI18nPolicies < Minitest::Test
     refute policy.apply(:edit?)
     assert_includes policy.result.reasons.full_messages,
       "You are not authorized to access feed according to policy including core"
+  end
+
+  def test_deferred_deny_message
+    policy = I18nDefaultPolicy.new(user: @user)
+    refute policy.apply(:view?)
+    assert_equal "This data has been deleted", policy.result.message
   end
 end
 
