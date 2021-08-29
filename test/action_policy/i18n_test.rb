@@ -18,6 +18,10 @@ class I18nDefaultPolicy < ActionPolicy::Base
   def access_feed?
     false
   end
+
+  def view?
+    deny!(:deleted)
+  end
 end
 
 class I18nLocalizedIdentifiedPolicy < I18nDefaultPolicy
@@ -70,7 +74,8 @@ class TestI18nAppDefaults < Minitest::Test
         unauthorized: "This action is not allowed",
         policy: {
           feed?: "You're not authorized to access the feed",
-          admin?: "Only admins are authorized to view this data"
+          admin?: "Only admins are authorized to view this data",
+          deleted: "This data has been deleted"
         }
       }
     )
@@ -105,6 +110,12 @@ class TestI18nAppDefaults < Minitest::Test
     refute policy.apply(:edit?)
     assert_includes policy.result.reasons.full_messages,
       "Only admins are authorized to view this data"
+  end
+
+  def test_deny_message_override
+    policy = I18nDefaultPolicy.new(user: @user)
+    refute policy.apply(:view?)
+    assert_equal "This data has been deleted", policy.result.message
   end
 end
 
